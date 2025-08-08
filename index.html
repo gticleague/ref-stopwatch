@@ -225,8 +225,7 @@
     }
   }
 
-  /* ===== Added styles for logo and made by message ===== */
-
+  /* === ADDED: GTIC logo and Made by katislunatic styles === */
   .gtic-logo {
     position: fixed;
     bottom: 10px;
@@ -247,7 +246,7 @@
   }
 
   .made-by a {
-    color: #00aaff;
+    color: #00aaff; /* Blue link */
     text-decoration: none;
     font-weight: bold;
   }
@@ -256,6 +255,7 @@
     text-decoration: underline;
   }
 
+  /* Responsive logo scaling */
   @media (max-width: 480px) {
     .gtic-logo {
       width: 80px;
@@ -377,20 +377,19 @@
   </div>
 </div>
 
-<!-- Added: Credits and Logo -->
+<!-- === ADDED: GTIC logo and Made by message === -->
 <div class="made-by">
-  Made By <a href="https://discord.com/users/1252981295454224390" target="_blank">katislunatic</a>
+  Made By <a href="https://discord.com/users/1252981295454224390" target="_blank" rel="noopener noreferrer">katislunatic</a>
 </div>
 
-<a href="https://discord.gg/hB4V4ywqxj" target="_blank" title="Join GTIC Discord">
-  <img
-    src="https://cdn.discordapp.com/attachments/1300121957576212565/1403146509729398835/GTIC_Logo2.png?ex=68967d85&is=68952c05&hm=5ef7b6169aaf4ff182bd7020b41dfb081bbe56c6cb6a443b1ceca62065c0d2cd&"
-    alt="GTIC Logo"
-    class="gtic-logo"
-  />
+<a href="https://discord.gg/hB4V4ywqxj" target="_blank" rel="noopener noreferrer">
+  <img src="https://cdn.discordapp.com/attachments/1300121957576212565/1403146509729398835/GTIC_Logo2.png?ex=68967d85&is=68952c05&hm=5ef7b6169aaf4ff182bd7020b41dfb081bbe56c6cb6a443b1ceca62065c0d2cd&" 
+       alt="GTIC Logo" 
+       class="gtic-logo">
 </a>
 
 <script>
+  /* Your existing JavaScript here (unchanged) */
   let timers = {
     timer1: { startTime: null, elapsedTime: 0, running: false, score: 0 },
     timer2: { startTime: null, elapsedTime: 0, running: false, score: 0 },
@@ -521,4 +520,101 @@
     toxicity_all: [
       "Warning to both teams",
       "Second warning",
-      "Res
+      "Rescheduling of scrim with different ref",
+    ],
+    arguing_ref: ["Let argue, but if disrespectful → punish as toxicity"],
+  };
+
+  // Rules that require player name input
+  const playerSpecificRules = [
+    "map_hopping",
+    "hiding",
+    "dc_flicking",
+    "in_game_camera",
+    "playspace_abuse",
+    "illegal_hz",
+    "toxicity_player",
+  ];
+
+  // Show/hide player input box in penalty modal
+  function togglePlayerInput() {
+    const rule = document.getElementById("penaltyRule").value;
+    if (playerSpecificRules.includes(rule)) {
+      document.getElementById("playerInput").style.display = "block";
+    } else {
+      document.getElementById("playerInput").style.display = "none";
+      document.getElementById("playerName").value = "";
+    }
+  }
+
+  // Open penalty modal for given timer
+  function openPenaltyMenu(timerId) {
+    activeTimerForPenalty = timerId;
+    document.getElementById("penaltyModal").style.display = "block";
+    document.getElementById("penaltyRule").selectedIndex = 0;
+    togglePlayerInput();
+    document.getElementById("playerName").value = "";
+  }
+
+  // Close penalty modal
+  function closePenaltyMenu() {
+    document.getElementById("penaltyModal").style.display = "none";
+    activeTimerForPenalty = null;
+  }
+
+  // Submit penalty and update logs & offense counts
+  function submitPenalty() {
+    const rule = document.getElementById("penaltyRule").value;
+    const playerName = document.getElementById("playerName").value.trim();
+    if (playerSpecificRules.includes(rule) && !playerName) {
+      alert("Please enter the player name for this penalty.");
+      return;
+    }
+
+    if (!offenseCounts.team[activeTimerForPenalty]) {
+      offenseCounts.team[activeTimerForPenalty] = {};
+    }
+    if (!offenseCounts.team[activeTimerForPenalty][rule]) {
+      offenseCounts.team[activeTimerForPenalty][rule] = 0;
+    }
+    if (playerName && !offenseCounts.player[playerName]) {
+      offenseCounts.player[playerName] = {};
+    }
+    if (playerName && !offenseCounts.player[playerName][rule]) {
+      offenseCounts.player[playerName][rule] = 0;
+    }
+
+    let offenseNum;
+    if (playerSpecificRules.includes(rule)) {
+      offenseCounts.player[playerName][rule]++;
+      offenseNum = offenseCounts.player[playerName][rule];
+    } else {
+      offenseCounts.team[activeTimerForPenalty][rule]++;
+      offenseNum = offenseCounts.team[activeTimerForPenalty][rule];
+    }
+
+    const punishments = penaltyRules[rule] || ["No punishment defined"];
+    const appliedPunishment =
+      punishments[Math.min(offenseNum - 1, punishments.length - 1)];
+
+    // Log the penalty with timestamp
+    const logEl = document.getElementById(`${activeTimerForPenalty}PenaltyLog`);
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = playerName
+      ? `[${timestamp}] Player ${playerName} offense #${offenseNum} for ${rule.replace(
+          /_/g,
+          " "
+        )}: ${appliedPunishment}`
+      : `[${timestamp}] Team offense #${offenseNum} for ${rule.replace(
+          /_/g,
+          " "
+        )}: ${appliedPunishment}`;
+
+    logEl.innerHTML += `<div>${logMessage}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    closePenaltyMenu();
+  }
+</script>
+</body>
+</html>
