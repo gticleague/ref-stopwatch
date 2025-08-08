@@ -1,187 +1,57 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RefStopwatch — Forkable Single File</title>
+  <meta charset="UTF-8" />
+  <title>RefStopwatch Clone</title>
   <style>
-    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#111}
-    body{max-width:900px;margin:32px auto;padding:20px}
-    h1{font-size:20px;margin-bottom:8px}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-    .timers{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-    .timer{border:1px solid #ddd;padding:12px;border-radius:8px;background:#fafafa}
-    .display{font-size:28px;font-weight:700;margin:8px 0}
-    button{padding:8px 10px;border-radius:6px;border:1px solid #bbb;background:#fff;cursor:pointer}
-    button.secondary{background:#f0f0f0}
-    .row{display:flex;gap:8px;align-items:center}
-    .meta{display:flex;gap:8px;align-items:center;margin-top:8px}
-    .num{min-width:44px;text-align:center}
-    .small{font-size:12px;color:#555}
+    body { font-family: sans-serif; text-align: center; margin-top: 5rem; }
+    #display { font-size: 4rem; }
+    button { font-size: 1.5rem; margin: 0.5rem; padding: 0.5rem 1rem; }
   </style>
 </head>
 <body>
-  <h1>Bread's Timer & Scoring — GitHub-ready single file</h1>
-
-  <div class="controls">
-    <label class="small">Starting Time:
-      <select id="startingSelect">
-        <option value="0">Custom (0)</option>
-        <option value="5">5 seconds</option>
-        <option value="7">7 seconds</option>
-        <option value="10">10 seconds</option>
-        <option value="15">15 seconds</option>
-        <option value="20">20 seconds</option>
-      </select>
-    </label>
-
-    <button id="addTimer">Add Timer</button>
-    <button id="resetAll" class="secondary">Reset All Timers</button>
-    <button id="downloadHTML" class="secondary">Download HTML</button>
-  </div>
-
-  <div class="timers" id="timers"></div>
+  <div id="display">00:00:00.000</div>
+  <button id="startStop">Start</button>
+  <button id="reset">Reset</button>
 
   <script>
-    // Single-file stopwatch with score/warnings and multiple timers
-    const timersEl = document.getElementById('timers');
-    const addTimerBtn = document.getElementById('addTimer');
-    const resetAllBtn = document.getElementById('resetAll');
-    const startingSelect = document.getElementById('startingSelect');
-    const downloadHTML = document.getElementById('downloadHTML');
+    let startTime = 0, elapsed = 0, timerId;
+    const display = document.getElementById('display');
+    const startStopBtn = document.getElementById('startStop');
+    const resetBtn = document.getElementById('reset');
 
-    let timers = [];
-
-    function formatTime(ms){
-      const totalHundredths = Math.floor(ms/10);
-      const hundredths = totalHundredths % 100;
-      const totalSeconds = Math.floor(totalHundredths/100);
-      const minutes = Math.floor(totalSeconds/60).toString().padStart(2,'0');
-      const seconds = (totalSeconds % 60).toString().padStart(2,'0');
-      return `${minutes}:${seconds}.${hundredths.toString().padStart(2,'0')}`;
+    function formatTime(ms) {
+      const hrs = String(Math.floor(ms / 3600000)).padStart(2, '0'),
+            mins = String(Math.floor(ms / 60000) % 60).padStart(2, '0'),
+            secs = String(Math.floor(ms / 1000) % 60).padStart(2, '0'),
+            msecs = String(ms % 1000).padStart(3, '0');
+      return `${hrs}:${mins}:${secs}.${msecs}`;
     }
 
-    function createTimer(startSeconds=0){
-      const id = Math.random().toString(36).slice(2,9);
-      const state = {
-        id, running:false, startSeconds, elapsed:0, lastTick:0, score:0, warnings:0
-      };
-      timers.push(state);
-      renderTimer(state);
+    function updateDisplay() {
+      elapsed = Date.now() - startTime;
+      display.textContent = formatTime(elapsed);
     }
 
-    function renderTimer(state){
-      const container = document.createElement('div');
-      container.className = 'timer';
-      container.dataset.id = state.id;
-
-      container.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="display" id="display-${state.id}">${formatTime(state.elapsed)}</div>
-            <div class="small">Start: <span id="start-${state.id}">${state.startSeconds}s</span></div>
-          </div>
-          <div style="margin-left:auto;text-align:right">
-            <button id="startBtn-${state.id}">Start</button>
-            <button id="resetBtn-${state.id}" class="secondary">Reset</button>
-          </div>
-        </div>
-        <div class="meta">
-          <div>▲ <button id="incScore-${state.id}">+</button> <span class="num" id="score-${state.id}">${state.score}</span></div>
-          <div>▼ <button id="decScore-${state.id}">-</button></div>
-          <div style="margin-left:8px">Warnings <button id="incWarn-${state.id}">+</button> <span class="num" id="warn-${state.id}">${state.warnings}</span></div>
-          <div style="margin-left:auto"><button id="remove-${state.id}" class="secondary">Remove</button></div>
-        </div>
-      `;
-
-      timersEl.appendChild(container);
-
-      // Wire up buttons
-      document.getElementById(`startBtn-${state.id}`).addEventListener('click', ()=>toggleStart(state.id));
-      document.getElementById(`resetBtn-${state.id}`).addEventListener('click', ()=>resetTimer(state.id));
-      document.getElementById(`incScore-${state.id}`).addEventListener('click', ()=>changeScore(state.id,1));
-      document.getElementById(`decScore-${state.id}`).addEventListener('click', ()=>changeScore(state.id,-1));
-      document.getElementById(`incWarn-${state.id}`).addEventListener('click', ()=>changeWarnings(state.id,1));
-      document.getElementById(`remove-${state.id}`).addEventListener('click', ()=>removeTimer(state.id));
-
-      updateDisplay(state.id);
-    }
-
-    function getState(id){return timers.find(t=>t.id===id)}
-
-    function toggleStart(id){
-      const s = getState(id);
-      if(!s) return;
-      s.running = !s.running;
-      s.lastTick = performance.now();
-      const btn = document.getElementById(`startBtn-${id}`);
-      btn.textContent = s.running? 'Pause' : 'Start';
-    }
-
-    function resetTimer(id){
-      const s = getState(id); if(!s) return;
-      s.elapsed = s.startSeconds*1000; // startSeconds used as initial value
-      s.running = false;
-      document.getElementById(`startBtn-${id}`).textContent = 'Start';
-      updateDisplay(id);
-    }
-
-    function changeScore(id, delta){
-      const s = getState(id); if(!s) return; s.score += delta; if(s.score<0) s.score=0; document.getElementById(`score-${id}`).textContent = s.score;
-    }
-    function changeWarnings(id, delta){
-      const s = getState(id); if(!s) return; s.warnings += delta; if(s.warnings<0) s.warnings=0; document.getElementById(`warn-${id}`).textContent = s.warnings;
-    }
-
-    function removeTimer(id){
-      timers = timers.filter(t=>t.id!==id);
-      const el = document.querySelector(`.timer[data-id='${id}']`);
-      if(el) el.remove();
-    }
-
-    function updateDisplay(id){
-      const s = getState(id); if(!s) return;
-      const disp = document.getElementById(`display-${id}`);
-      if(disp) disp.textContent = formatTime(s.elapsed);
-      const startSpan = document.getElementById(`start-${id}`);
-      if(startSpan) startSpan.textContent = s.startSeconds + 's';
-    }
-
-    function tick(){
-      const now = performance.now();
-      for(const s of timers){
-        if(s.running){
-          const d = now - s.lastTick;
-          s.elapsed += d;
-          s.lastTick = now;
-          const disp = document.getElementById(`display-${s.id}`);
-          if(disp) disp.textContent = formatTime(s.elapsed);
-        }
-      }
-      requestAnimationFrame(tick);
-    }
-
-    addTimerBtn.addEventListener('click', ()=>{
-      const sec = Number(startingSelect.value) || 0;
-      createTimer(sec);
-    });
-
-    resetAllBtn.addEventListener('click', ()=>{
-      for(const s of timers){
-        s.running = false; s.elapsed = s.startSeconds*1000; const btn = document.getElementById(`startBtn-${s.id}`); if(btn) btn.textContent='Start'; updateDisplay(s.id);
+    startStopBtn.addEventListener('click', () => {
+      if (!timerId) {
+        startTime = Date.now() - elapsed;
+        timerId = setInterval(updateDisplay, 10);
+        startStopBtn.textContent = 'Stop';
+      } else {
+        clearInterval(timerId);
+        timerId = null;
+        startStopBtn.textContent = 'Start';
       }
     });
 
-    downloadHTML.addEventListener('click', ()=>{
-      const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'RefStopwatch.html'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    resetBtn.addEventListener('click', () => {
+      clearInterval(timerId);
+      timerId = null;
+      elapsed = 0;
+      display.textContent = '00:00:00.000';
+      startStopBtn.textContent = 'Start';
     });
-
-    // create a default timer to match original
-    createTimer(0);
-    // start the RAF loop
-    tick();
   </script>
 </body>
 </html>
